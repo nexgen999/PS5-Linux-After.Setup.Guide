@@ -1,0 +1,202 @@
+1 setting > resolution > scale
+2 sound > hdmi output and volume level
+3 power perforance > quto bqlck screen off
+4 keyboard > french azerty
+5 region+date time
+
+6 add lang from app store> localisation "glibc"
+7 setting >system add language
+
+open terminal
+
+sudo dnf install glibc-langpack-fr
+sudo localectl set-locale LANG=fr_FR.UTF-8
+sudo localectl set-keymap fr
+sudo localectl set-x11-keymap fr
+localectl status
+sudo reboot
+
+-----------
+
+sudo dnf upgrade
+validate by : o
+
+sudo dnf check-update
+
+#install ps5 linux tools
+
+sudo dnf install git make gcc zlib-devel
+
+git clone https://github.com/ps5-linux/ps5-linux-tools
+cd ps5-linux-tools
+make
+
+sudo ./install.sh
+------------------------------
+#informations
+#Disable services you do not want:
+#sudo systemctl disable --now ps5fan.service
+#sudo systemctl disable --now ps5boost.service
+------------------------------
+  
+ #check service
+ sudo systemctl status ps5fan.service
+  
+ to exit = q
+  
+sudo ps5_control --status
+sudo ps5_control --fan on
+sudo ps5_control --boost on
+  
+#add flatpack :
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+  
+#verify :
+flatpak remotes
+  
+#upgrade flatpak :
+flatpak update --appstream
+  
+#information - search and install
+#flatpak search xyz
+#flatpak install flathub ID
+  
+sudo dnf install lm_sensors
+sensors
+  
+install opera from appstore
+  
+sudo nano /etc/systemd/system/ps5-performance.service
+  
+------------
+  
+[Unit]
+Description=PS5 Fan Control and Boost Mode
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ps5_control --fan on
+ExecStartPost=/usr/local/sbin/ps5_control --boost on
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+------------
+
+ctrl+o (save) ctrl+x = exit
+
+sudo systemctl daemon-reload
+sudo systemctl restart ps5-performance.service
+sudo systemctl status ps5-performance.service
+
+sudo dnf install vulkan-tools
+sudo dnf install mesa-demos
+
+sudo dnf upgrade mesa\* vulkan\*
+vulkaninfo --summary | grep -i "radv"
+
+--------------------------
+
+#add steam repo :
+sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+#install steam :
+sudo dnf install steam
+
+#run steam:
+steam
+
+#add heroic repo :
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+#install heroic :
+flatpak install flathub com.heroicgameslauncher.hgl
+
+#run heroic :
+flatpak run com.heroicgameslauncher.hgl
+
+#install proton-qt
+flatpak install flathub net.davidotek.pupgui2
+#add lastest proton for steam and heroic
+
+-------------
+uname -a
+
+#upgrade to fedora45 :
+
+sudo dnf upgrade --refresh
+sudo dnf autoremove
+sudo dnf system-upgrade download --releasever=45 --allowerasing
+
+sudo dnf5 offline reboot
+
+-----------------
+#install app plasma-systemmonitor:
+
+sudo dnf install plasma-systemmonitor
+plasma-systemmonitor
+
+-----------------
+#install app radeontop :
+
+sudo dnf install radeontop
+sudo radeontop
+
+q=exit
+-----------------
+#install app btop :
+sudo dnf install btop
+btop
+
+q=exit
+
+-----------------
+
+sudo dnf install umr
+sudo umr --top
+
+-----------------------
+#install ps5 hardware control:
+
+ls -l /sys/class/hwmon/
+
+curl -L https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh | sh
+
+sudo dnf install python3-PyQt6
+
+curl -fsSL https://raw.githubusercontent.com/NotHavocc/ps5-hwcon-gui/main/install.sh | bash
+
+ps5-hwcon-gui
+
+-----------------------
+#upgrade kernel
+
+download kernel rpm file from https://github.com/ps5-linux/ps5-linux-patches/releases
+download rpm version ( use good version name , when i make this tutorial linux-ps5-7.3.1-1.x86_64.rpm )
+
+cd ~/Downloads
+sudo dnf install ./linux-ps5-7.3.1-1.x86_64.rpm
+
+sudo reboot
+
+uname -r
+hostnamectl
+
+-----------------------
+#install gnome extension manager :
+
+flatpak install flathub com.mattjakeman.ExtensionManager
+flatpak run com.mattjakeman.ExtensionManager
+
+#extension to add :
+- dash to dock
+- vitals
+- Clipboard Indicator
+- Tiling Shell
+- GSConnect
+- Just Perfection
+
+------------------------
+
