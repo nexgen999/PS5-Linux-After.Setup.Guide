@@ -2,17 +2,17 @@
 
 This guide provides a step-by-step walkthrough for configuring, optimizing, and maintaining a Fedora Linux environment running on PlayStation 5 hardware. It covers initial desktop setup, multi-language localization, hardware controls, GPU telemetry, gaming prerequisites, and system maintenance.
 
----
-
 ## 1. ⚙️ Initial GNOME Desktop Setup
 
 1. **Display:** `Settings` > `Displays` > Set **Resolution** and adjust **Scaling** to fit your TV or monitor.
-2. **Sound:** `Settings` > `Sound` > Set **Output Device** to **HDMI Output** and adjust master volume.
-3. **Power:** `Settings` > `Power` > Disable automatic screen sleep (*Blank Screen* -> **Never**).
-4. **Keyboard Layout:** `Settings` > `Keyboard` > Add your preferred keyboard layout (e.g., US, French AZERTY, German QWERTZ).
-5. **Region & Time:** `Settings` > `System` > `Date & Time` / `Language`.
 
----
+2. **Sound:** `Settings` > `Sound` > Set **Output Device** to **HDMI Output** and adjust master volume.
+
+3. **Power:** `Settings` > `Power` > Disable automatic screen sleep (*Blank Screen* -> **Never**).
+
+4. **Keyboard Layout:** `Settings` > `Keyboard` > Add your preferred keyboard layout (e.g., US, French AZERTY, German QWERTZ).
+
+5. **Region & Time:** `Settings` > `System` > `Date & Time` / `Language`.
 
 ## 2. 🌐 System Localization & Language Packs
 
@@ -63,8 +63,6 @@ localectl status
 # Reboot to apply changes system-wide
 sudo reboot
 ```
-
----
 
 ## 3. 🛠️ PS5 Hardware Tools (Fan & Boost Mode Control)
 
@@ -139,17 +137,21 @@ sudo systemctl enable --now ps5-performance.service
 sudo systemctl status ps5-performance.service
 ```
 
----
+## 4. 📦 Repositories, Sensors & Web Browser
 
-## 4. 📦 Repository Management (Flathub & RPM Fusion)
-
-### Enable Flathub (Flatpak Apps)
+### Enable Flathub & Install Sensors
 
 ```bash
+sudo dnf install lm_sensors
+sensors
+
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 flatpak remotes
 flatpak update --appstream
 ```
+
+### Install a Web Browser (Opera)
+Open the GNOME Software center or use Flathub to install the **Opera** web browser. This allows you to easily browse the web and download custom packages like the kernel RPM.
 
 ### Enable RPM Fusion (Free & Non-Free Repositories)
 
@@ -157,19 +159,16 @@ flatpak update --appstream
 sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 ```
 
----
-
 ## 5. 🎮 Gaming Prerequisites (Steam, Heroic & Proton)
 
 ### Drivers & Vulkan Validation (Mesa / RADV)
 
 ```bash
-sudo dnf install vulkan-tools mesa-demos lm_sensors
+sudo dnf install vulkan-tools mesa-demos
 sudo dnf upgrade mesa\* vulkan\*
 
 # Verify AMD RADV GPU driver support
 vulkaninfo --summary | grep -i "radv"
-sensors
 ```
 
 ### Install Gaming Launchers & Compatibility Tools
@@ -187,8 +186,6 @@ flatpak install flathub net.davidotek.pupgui2
 
 *Tip: Launch ProtonUp-Qt to install the latest GE-Proton releases for Steam and Heroic.*
 
----
-
 ## 6. 🔄 Fedora Distribution Upgrade Procedure
 
 ```bash
@@ -202,8 +199,6 @@ sudo dnf system-upgrade download --releasever=45 --allowerasing
 # Step 3: Trigger offline reboot upgrade
 sudo dnf5 offline reboot
 ```
-
----
 
 ## 7. 📊 System Telemetry & Hardware Monitoring
 
@@ -223,8 +218,6 @@ sudo dnf install umr
 sudo umr --top
 ```
 
----
-
 ## 8. 🛠️ PS5 Hardware Control GUI & Decky Loader
 
 ```bash
@@ -242,11 +235,9 @@ curl -fsSL https://raw.githubusercontent.com/NotHavocc/ps5-hwcon-gui/main/instal
 ps5-hwcon-gui
 ```
 
----
-
 ## 9. 🧠 PS5 Kernel Update Procedure (RPM Package)
 
-1. Download the latest release `.rpm` from the [ps5-linux-patches releases](https://github.com/ps5-linux/ps5-linux-patches/releases) repository (e.g., `linux-ps5-7.3.1-1.x86_64.rpm`).
+1. Using your browser (such as Opera), visit the [ps5-linux-patches releases](https://github.com/ps5-linux/ps5-linux-patches/releases) page and download the target `.rpm` kernel package (e.g., `linux-ps5-7.3.1-1.x86_64.rpm`).
 
 2. Navigate to your downloads directory and install the local package:
 
@@ -265,8 +256,6 @@ uname -r
 hostnamectl
 ```
 
----
-
 ## 10. 🧩 Extension Manager & Recommended GNOME Extensions
 
 Install the Extension Manager application:
@@ -277,6 +266,7 @@ flatpak run com.mattjakeman.ExtensionManager
 ```
 
 **Recommended Extensions:**
+
 * 📌 **Dash to Dock** — Permanent visible application dock.
 * 📈 **Vitals** — Real-time CPU/GPU temperatures, memory, and system metrics in top bar.
 * 📋 **Clipboard Indicator** — Clipboard history manager.
