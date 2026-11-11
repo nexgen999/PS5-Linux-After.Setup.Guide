@@ -1,112 +1,217 @@
 # 🐧 Guide de démarrage rapide Fedora Linux
 
-Ce guide rassemble les raccourcis essentiels, la feuille de triche des commandes terminal (DNF, Flatpak, système) ainsi qu'un tutoriel pour personnaliser vos raccourcis sur Fedora.
+Ce guide rassemble les raccourcis essentiels, la feuille de triche des commandes terminal (DNF, Flatpak, système), la gestion des dépôts, ainsi que des sections détaillées pour la mise à jour, la mise à niveau de l'OS et la maintenance de votre environnement.
 
 ---
 
 ## 1. ⌨️ Raccourcis clavier indispensables
 
 ### Raccourcis système GNOME
-| Raccourci | Action |
-| :--- | :--- |
-| **`Super`** *(Touche Windows)* | Ouvre la vue d'ensemble des activités et la recherche globale |
-| **`Super` + `A`** | Affiche la grille de toutes les applications installées |
-| **`Super` + `Flèche Gauche / Droite`** | Ancre la fenêtre active sur la moitié gauche ou droite de l'écran |
-| **`Super` + `V`** | Affiche le panneau des notifications et le calendrier |
-| **`Alt` + `Tab`** | Bascule rapidement entre les applications ouvertes |
-| **`Super` + `Impr. Écran`** | Ouvre l'outil de capture d'écran / enregistrement vidéo |
+
+| Raccourci | Action | 
+| ----- | ----- | 
+| **`Super`** *(Touche Windows)* | Ouvre la vue d'ensemble des activités et la recherche globale | 
+| **`Super` + `A`** | Affiche la grille de toutes les applications installées | 
+| **`Super` + `Flèche Gauche / Droite`** | Ancre la fenêtre active sur la moitié gauche ou droite de l'écran | 
+| **`Super` + `V`** | Affiche le panneau des notifications et le calendrier | 
+| **`Alt` + `Tab`** | Bascule rapidement entre les applications ouvertes | 
+| **`Super` + `Impr. Écran`** | Ouvre l'outil de capture d'écran / enregistrement vidéo | 
 
 ### Raccourcis Terminal
-| Raccourci | Action |
-| :--- | :--- |
-| **`Ctrl` + `Alt` + `T`** | Ouvrir le terminal *(à configurer si non actif)* |
-| **`Ctrl` + `Shift` + `C`** | Copier le texte sélectionné dans le terminal |
-| **`Ctrl` + `Shift` + `V`** | Coller le texte dans le terminal |
-| **`Ctrl` + `C`** | Interrompre ou stopper la commande en cours |
-| **`Ctrl` + `L`** | Effacer l'écran du terminal (équivalent de `clear`) |
+
+| Raccourci | Action | 
+| ----- | ----- | 
+| **`Ctrl` + `Alt` + `T`** | Ouvrir le terminal *(à configurer si non actif)* | 
+| **`Ctrl` + `Shift` + `C`** | Copier le texte sélectionné dans le terminal | 
+| **`Ctrl` + `Shift` + `V`** | Coller le texte dans le terminal | 
+| **`Ctrl` + `C`** | Interrompre ou stopper la commande en cours | 
+| **`Ctrl` + `L`** | Effacer l'écran du terminal (équivalent de `clear`) | 
 
 ---
 
-## 2. 💻 Feuille de triche des commandes Terminal (Cheat Sheet)
+## 2. 🗄️ Gestion des Dépôts de Paquets (RPM Fusion)
 
-### 📦 Gestion des paquets (DNF)
+Par défaut, Fedora n'inclut que des logiciels 100 % libres. Pour installer des codecs vidéo propriétaires, certains pilotes et des logiciels grand public, il est recommandé d'activer les dépôts **RPM Fusion**.
+
 ```bash
-# Mettre à jour l'ensemble des paquets et du système
-sudo dnf upgrade
+# Activer le dépôt RPM Fusion Free
+sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
 
+# Activer le dépôt RPM Fusion Non-Free (pilotes propriétaires, codecs...)
+sudo dnf install https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+# Mettre à jour les métadonnées après l'ajout
+sudo dnf check-update
+```
+
+---
+
+## 3. 🚀 Découvrir et gérer les applications Flatpak (Flathub)
+
+Les Flatpaks permettent d'installer des applications isolées du système principal. Le catalogue principal est **Flathub**.
+
+### Ajouter la source Flathub (si non présente)
+```bash
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+```
+
+### Rechercher et installer des Flatpaks
+```bash
+# Rechercher une application (ex: Spotify, Discord, Heroic)
+flatpak search heroic
+
+# Installer une application via son ID
+flatpak install flathub com.heroicgameslauncher.hgl
+
+# Lancer une application depuis le terminal
+flatpak run com.heroicgameslauncher.hgl
+```
+
+### Gérer et nettoyer les Flatpaks
+```bash
+# Lister les applications Flatpak installées
+flatpak list --app
+
+# Supprimer une application
+flatpak uninstall com.heroicgameslauncher.hgl
+
+# Supprimer les dépendances et runtimes devenus inutiles (nettoyage)
+flatpak uninstall --unused
+
+# Réparer l'environnement Flatpak en cas de pépin
+flatpak repair
+```
+
+---
+
+## 4. 🔄 Mises à jour, upgrade d'OS et maintenance
+
+### 📦 Mises à jour du système (DNF)
+
+```bash
+# Vérifier si des mises à jour sont disponibles
+sudo dnf check-update
+
+# Mettre à jour l'ensemble des paquets DNF
+sudo dnf upgrade --refresh
+
+# Mettre à jour un paquet spécifique
+sudo dnf upgrade steam
+```
+
+### 🧹 Nettoyage des caches du système
+
+```bash
+# Effacer le cache des métadonnées et paquets téléchargés par DNF
+sudo dnf clean all
+
+# Nettoyer les journaux système volumineux (ex: conserver les 3 derniers jours)
+sudo journalctl --vacuum-time=3d
+
+# Supprimer les fichiers temporaires et le cache utilisateur
+rm -rf ~/.cache/*
+```
+
+### 🚀 Upgrade majeur de Fedora (Changement de version)
+
+```bash
+# Step 1 : Mettre à jour la version actuelle
+sudo dnf upgrade --refresh
+
+# Step 2 : Télécharger les paquets de la nouvelle version (ex: passer à la version 46)
+sudo dnf system-upgrade download --releasever=46
+
+# Step 3 : Déclencher la mise à jour au redémarrage
+sudo dnf system-upgrade reboot
+```
+
+---
+
+## 5. 💻 Feuille de triche des commandes Terminal (Cheat Sheet)
+
+### 📦 Gestion au quotidien des paquets DNF
+
+```bash
 # Chercher un paquet dans les dépôts
-sudo dnf search <nom-du-paquet>
+sudo dnf search <mot-clé>
+
+# Obtenir des informations détaillées sur un paquet
+sudo dnf info <nom-du-paquet>
 
 # Installer un paquet
 sudo dnf install <nom-du-paquet>
 
-# Supprimer un paquet
+# Désinstaller un paquet et ses dépendances inutilisées
 sudo dnf remove <nom-du-paquet>
-
-# Nettoyer le cache DNF pour libérer de l'espace disque
-sudo dnf clean all
-```
-
-### 🚀 Applications Flatpak
-```bash
-# Mettre à jour toutes les applications Flatpak
-flatpak update
-
-# Lister les applications Flatpak installées
-flatpak list
-
-# Installer une application depuis Flathub
-flatpak install flathub <nom-application>
-
-# Nettoyer les dépendances Flatpak inutilisées
-flatpak uninstall --unused
 ```
 
 ### 📁 Navigation et gestion des fichiers
+
 ```bash
-# Lister le contenu d'un dossier (avec fichiers cachés)
+# Lister le contenu d'un dossier (avec détails et fichiers cachés)
 ls -la
 
-# Se déplacer dans un dossier
+# Aller dans un dossier
 cd ~/Téléchargements
 
-# Remonter au dossier parent
+# Remonter d'un dossier
 cd ..
 
-# Afficher le dossier courant
+# Afficher l'emplacement actuel
 pwd
 
-# Créer un nouveau dossier
+# Créer un dossier
 mkdir MonDossier
 
 # Supprimer un fichier
-rm nom-du-fichier
+rm fichier.txt
 
-# Supprimer un dossier et tout son contenu (attention)
+# Supprimer un dossier et tout son contenu
 rm -rf MonDossier
 ```
 
-### ⚙️ Surveillance et informations système
+### ⚙️ Surveillance, processeur et disques
+
 ```bash
-# Afficher la version exacte du noyau Linux actif
+# Afficher la version exacte du noyau Linux
 uname -r
 
-# Informations détaillées sur la machine et la OS
+# Informations synthétiques sur la machine et le système
 hostnamectl
 
 # Consulter l'espace disque disponible sur chaque partition
 df -h
 
-# Consulter l'utilisation de la RAM
+# Consulter la mémoire RAM utilisée et libre
 free -h
 
-# Afficher les processus en cours (gestionnaire de tâches)
+# Afficher l'utilisation du processeur et des processus en cours
 top
 ```
 
 ---
 
-## 3. 🛠️ Configurer le raccourci `Ctrl + Alt + T` pour le Terminal
+## 6. 🔍 Diagnostic et résolution de problèmes
+
+Si une application ne répond plus ou si vous devez analyser ce qui se passe en arrière-plan :
+
+```bash
+# Trouver le numéro de processus (PID) d'une application plantée
+pgrep -l <nom-application>
+
+# Forcer la fermeture d'une application
+killall -9 <nom-application>
+
+# Consulter les derniers messages d'erreur du système en direct
+sudo journalctl -f -p 3
+
+# Vérifier les messages du noyau (utile pour le matériel et les pilotes)
+sudo dmesg -w
+```
+
+---
+
+## 7. 🛠️ Configurer le raccourci `Ctrl + Alt + T` pour le Terminal
 
 Si le raccourci `Ctrl` + `Alt` + `T` ne lance pas le terminal par défaut sur votre session :
 
