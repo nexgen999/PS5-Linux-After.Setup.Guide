@@ -1,0 +1,23 @@
+# Vérifier si des mises à jour sont disponibles (sans les installer)
+sudo dnf check-update
+
+# Mettre à jour tous les paquets installés (équivalent de update / upgrade)
+sudo dnf upgrade
+
+# Mettre à jour flatpak
+flatpak update
+
+# Nettoyer le cache après la mise à jour
+sudo dnf clean all
+
+# Mettre à niveau Fedora vers une nouvelle version majeure (ex: Fedora 45 ➔ 46)
+Lorsque vous souhaiterez passer à la version majeure suivante de la distribution :
+
+# 1. Mettre à jour les paquets actuels
+sudo dnf upgrade --refresh
+
+# 2. Télécharger la nouvelle version (remplacer 46 par le numéro ciblé)
+sudo dnf system-upgrade download --releasever=46
+
+# 3. Déclencher le redémarrage et la mise à niveau
+sudo dnf system-upgrade reboot
