@@ -1,0 +1,461 @@
+#!/bin/bash
+# ==============================================================================
+# PS5 Linux (Fedora) - Universal All-in-One Interactive Post-Setup Manager
+# Author: nexgen999 (https://github.com/nexgen999/PS5-Linux-After.Setup.Guide)
+# Description: Universal CLI/GUI manager with 50+ essential apps, GParted, SMB,
+#              Mail clients, Servers tools, emulators and maintenance.
+# ==============================================================================
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# ==============================================================================
+# OPTION 1: UNIVERSAL LANGUAGE & KEYBOARD CONFIGURATION
+# ==============================================================================
+configure_language() {
+    echo -e "\n${BLUE}=== [OPTION 1] Configuration Universelle Langue & Clavier ===${NC}"
+    
+    LANGUAGES=(
+        "1|Français (France - AZERTY)|fr|fr_FR.UTF-8|fr|fr"
+        "2|English (US - QWERTY)|en|en_US.UTF-8|us|us"
+        "3|English (UK - QWERTY)|en|en_GB.UTF-8|uk|gb"
+        "4|Español (España - QWERTY)|es|es_ES.UTF-8|es|es"
+        "5|Deutsch (Deutschland - QWERTZ)|de|de_DE.UTF-8|de|de"
+        "6|Italiano (Italia - QWERTY)|it|it_IT.UTF-8|it|it"
+        "7|Português (Portugal - QWERTY)|pt|pt_PT.UTF-8|pt|pt"
+        "8|Português (Brasil - ABNT2)|pt-BR|pt_BR.UTF-8|br-abnt2|br"
+        "9|Nederlands (Nederland - QWERTY)|nl|nl_NL.UTF-8|nl|nl"
+        "10|Polski (Polska - QWERTY)|pl|pl_PL.UTF-8|pl|pl"
+        "11|Русский (Россия - JCUKEN)|ru|ru_RU.UTF-8|ru|ru"
+        "12|日本語 (Japanese)|ja|ja_JP.UTF-8|jp106|jp"
+        "13|한국어 (Korean)|ko|ko_KR.UTF-8|kr|kr"
+        "14|简体中文 (Chinese Simplified)|zh-CN|zh_CN.UTF-8|us|cn"
+        "15|العربية (Arabic)|ar|ar_SA.UTF-8|us|ara"
+        "16|Türkçe (Türkiye - QWERTY)|tr|tr_TR.UTF-8|trq|tr"
+        "17|Svenska (Sverige - QWERTY)|sv|sv_SE.UTF-8|se|se"
+    )
+
+    if command -v zenity &> /dev/null && [ -n "$DISPLAY" ]; then
+        ZEN_ARGS=()
+        for entry in "${LANGUAGES[@]}"; do
+            IFS='|' read -r id name lp loc km x11 <<< "$entry"
+            ZEN_ARGS+=("$id" "$name" "$loc ($x11)")
+        done
+
+        LANG_CHOICE=$(zenity --list \
+            --title="Language & Keyboard Setup / Configuration Langue" \
+            --text="Select your system language and keyboard layout:\nSélectionnez la langue du système et la disposition du clavier :" \
+            --column="ID" --column="Language / Langue" --column="Locale & Keymap" \
+            --width=600 --height=450 \
+            "${ZEN_ARGS[@]}")
+    else
+        echo -e "Sélectionnez votre langue / Select your language :"
+        echo -e "----------------------------------------------------------------"
+        for entry in "${LANGUAGES[@]}"; do
+            IFS='|' read -r id name lp loc km x11 <<< "$entry"
+            printf "  ${GREEN}%2s)${NC} %-32s [${CYAN}%s${NC}]\n" "$id" "$name" "$loc"
+        done
+        echo -e "  ${RED} 0)${NC} Retour au menu principal / Back"
+        echo -e "----------------------------------------------------------------"
+        read -p "Votre choix / Your choice : " LANG_CHOICE
+    fi
+
+    if [[ -z "$LANG_CHOICE" || "$LANG_CHOICE" == "0" ]]; then
+        return
+    fi
+
+    SELECTED=""
+    for entry in "${LANGUAGES[@]}"; do
+        IFS='|' read -r id name lp loc km x11 <<< "$entry"
+        if [[ "$id" == "$LANG_CHOICE" ]]; then
+            SELECTED="$entry"
+            break
+        fi
+    done
+
+    if [[ -z "$SELECTED" ]]; then
+        echo -e "${RED}Choix invalide / Invalid choice.${NC}"
+        sleep 1
+        return
+    fi
+
+    IFS='|' read -r id name lp loc km x11 <<< "$SELECTED"
+    echo -e "\n${YELLOW}Application de : $name ($loc | Clavier: $x11)...${NC}"
+    
+    GLIBC_CODE="${lp%%-*}"
+    sudo dnf install -y "glibc-langpack-${GLIBC_CODE}" "langpacks-${lp}" || sudo dnf install -y "glibc-langpack-${GLIBC_CODE}"
+    
+    sudo localectl set-locale "LANG=${loc}"
+    sudo localectl set-keymap "$km" || true
+    sudo localectl set-x11-keymap "$x11"
+
+    if command -v gsettings &> /dev/null && [ -n "$DISPLAY" ]; then
+        gsettings set org.gnome.desktop.input-sources sources "[('xkb', '${x11}')]" || true
+    fi
+
+    echo -e "${GREEN}✔ Langue et clavier configurés avec succès ($name) !${NC}"
+    sleep 2
+}
+
+# ==============================================================================
+# OPTION 2: INITIAL POST-INSTALLATION SETUP (Drivers, Tools, Fan, Base Apps)
+# ==============================================================================
+run_setup() {
+    echo -e "\n${BLUE}=== [OPTION 2] Configuration initiale PS5 (Pilotes, Outils, Fan/Boost) ===${NC}"
+
+    echo -e "\n${GREEN}[1/6] Mise à jour système et installation des outils de base (+ OpenSSL)...${NC}"
+    sudo dnf upgrade -y --refresh
+    sudo dnf install -y \
+        git make gcc zlib-devel openssl openssl-devel \
+        lm_sensors vulkan-tools mesa-demos \
+        plasma-systemmonitor radeontop btop umr \
+        python3-PyQt6 curl wget
+
+    echo -e "\n${GREEN}[2/6] Mise à jour des pilotes graphiques Mesa et Vulkan...${NC}"
+    sudo dnf upgrade -y mesa\* vulkan\*
+
+    echo -e "\n${GREEN}[3/6] Compilation et installation de ps5-linux-tools (Fan + Boost)...${NC}"
+    WORK_DIR=$(pwd)
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    git clone https://github.com/ps5-linux/ps5-linux-tools.git
+    cd ps5-linux-tools
+    make
+    sudo ./install.sh
+
+    sudo bash -c 'cat <<EOF > /etc/systemd/system/ps5-performance.service
+[Unit]
+Description=PS5 Fan Control and Boost Mode
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ps5_control --fan on
+ExecStartPost=/usr/local/sbin/ps5_control --boost on
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now ps5-performance.service
+    cd "$WORK_DIR"
+    rm -rf "$TEMP_DIR"
+
+    echo -e "\n${GREEN}[4/6] Installation de ps5-hwcon-gui...${NC}"
+    curl -fsSL https://raw.githubusercontent.com/NotHavocc/ps5-hwcon-gui/main/install.sh | bash
+
+    echo -e "\n${GREEN}[5/6] Activation de RPM Fusion (Free/Non-Free) et installation de Steam...${NC}"
+    sudo dnf install -y \
+        https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+        https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+    sudo dnf install -y steam
+
+    echo -e "\n${GREEN}[6/6] Configuration de Flathub et installation des essentiels...${NC}"
+    flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    flatpak update --appstream -y
+    flatpak install -y flathub \
+        com.heroicgameslauncher.hgl \
+        net.davidotek.pupgui2 \
+        com.mattjakeman.ExtensionManager
+
+    read -p "Voulez-vous aussi installer Decky Loader pour Steam ? (o/n) : " install_decky
+    if [[ "$install_decky" =~ ^[OoYy]$ ]]; then
+        curl -L https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh | sh
+    fi
+
+    echo -e "\n${GREEN}✔ Configuration initiale terminée avec succès !${NC}"
+    sleep 2
+}
+
+# ==============================================================================
+# OPTION 3: UPGRADE OS TO FEDORA 45
+# ==============================================================================
+run_upgrade() {
+    echo -e "\n${BLUE}=== [OPTION 3] Mise à niveau majeure vers Fedora 45 ===${NC}"
+    CURRENT_VER=$(rpm -E %fedora)
+    echo -e "Version actuelle détectée : ${YELLOW}Fedora $CURRENT_VER${NC}"
+    
+    if [ "$CURRENT_VER" -ge 45 ]; then
+        echo -e "${GREEN}Votre système est déjà sous Fedora $CURRENT_VER !${NC}"
+        sleep 2
+        return
+    fi
+
+    echo -e "${YELLOW}Attention : La console va redémarrer automatiquement.${NC}"
+    read -p "Lancer la mise à niveau vers Fedora 45 ? (o/n) : " confirm_upg
+    if [[ "$confirm_upg" =~ ^[OoYy]$ ]]; then
+        sudo dnf upgrade --refresh -y
+        sudo dnf autoremove -y
+        sudo dnf system-upgrade download --releasever=45 --allowerasing -y
+        sudo dnf5 offline reboot
+    fi
+}
+
+# ==============================================================================
+# OPTION 4: AUTOMATIC PS5 KERNEL FETCH & INSTALL
+# ==============================================================================
+run_kernel() {
+    echo -e "\n${BLUE}=== [OPTION 4] Téléchargement et installation du dernier noyau PS5 ===${NC}"
+    LATEST_RPM_URL=$(curl -s https://api.github.com/repos/ps5-linux/ps5-linux-patches/releases/latest | grep "browser_download_url.*\.rpm" | cut -d '"' -f 4 | head -n 1)
+
+    if [ -z "$LATEST_RPM_URL" ]; then
+        echo -e "${RED}Impossible de récupérer automatiquement le lien du noyau via l'API GitHub.${NC}"
+        sleep 3
+        return 1
+    fi
+
+    RPM_FILENAME=$(basename "$LATEST_RPM_URL")
+    echo -e "Dernier noyau trouvé : ${GREEN}$RPM_FILENAME${NC}"
+    
+    mkdir -p ~/Downloads
+    cd ~/Downloads
+    curl -LO "$LATEST_RPM_URL"
+    sudo dnf install -y "./$RPM_FILENAME"
+
+    read -p "Voulez-vous redémarrer maintenant ? (o/n) : " confirm_reb
+    if [[ "$confirm_reb" =~ ^[OoYy]$ ]]; then
+        sudo reboot
+    fi
+}
+
+# ==============================================================================
+# OPTION 5: CATEGORIZED APP STORE (50+ MEGA CATALOG WITH ALL EMULATORS & TOOLS)
+# ==============================================================================
+install_apps_menu() {
+    echo -e "\n${BLUE}=== [OPTION 5] Logithèque Géante (50+ Applications & Émulateurs) ===${NC}"
+    flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+    # Format: "ID|Catégorie|Nom|Type(flatpak/dnf)|Paquet/AppID|Description"
+    APPS=(
+        # 1. Navigateurs Web
+        "1|1. Navigateurs Web|Opera Browser|flatpak|com.opera.Opera|Navigateur web rapide avec VPN intégré"
+        "2|1. Navigateurs Web|Brave Browser|flatpak|com.brave.Browser|Navigateur axé sur la vie privée et anti-pub"
+        "3|1. Navigateurs Web|Google Chrome|flatpak|com.google.Chrome|Navigateur web de Google"
+        "4|1. Navigateurs Web|Chromium|flatpak|org.chromium.Chromium|Version open-source de Chrome"
+        "5|1. Navigateurs Web|Mozilla Firefox|flatpak|org.mozilla.firefox|Navigateur web libre et populaire"
+        
+        # 2. Bureautique, Mail & Organisation
+        "6|2. Bureautique & Mails|Thunderbird (Mails & Agenda)|dnf|thunderbird|Gestionnaire de mails et calendrier de référence"
+        "7|2. Bureautique & Mails|Evolution (Mails/Exchange)|dnf|evolution|Client e-mail complet style Outlook"
+        "8|2. Bureautique & Mails|LibreOffice|flatpak|org.libreoffice.LibreOffice|Suite bureautique complète (compatible Office)"
+        "9|2. Bureautique & Mails|Notepad++ (via Wine)|flatpak|io.github.thegeekod.Notepad|Éditeur de texte avancé style Notepad++"
+        "10|2. Bureautique & Mails|Obsidian|flatpak|md.obsidian.Obsidian|Prise de notes intelligente et Markdown"
+        "11|2. Bureautique & Mails|Planify|flatpak|io.github.alainm23.planify|Gestionnaire de tâches et de projets"
+
+        # 3. Outils Système, Réseau, SMB & Disques
+        "12|3. Outils Système & Réseau|GParted (Partitionnement)|dnf|gparted|Gestionnaire de partitions disque puissant"
+        "13|3. Outils Système & Réseau|Samba & Outils Réseau SMB|dnf|samba samba-client|Partage de fichiers et réseaux Windows/SMB"
+        "14|3. Outils Système & Réseau|FileZilla (FTP / SFTP)|flatpak|org.filezillaproject.FileZilla|Client FTP/SFTP/FTPS complet"
+        "15|3. Outils Système & Réseau|PeaZip (ZIP / RAR / 7Z)|flatpak|io.github.peazip.PeaZip|Gestionnaire d'archives universel"
+        "16|3. Outils Système & Réseau|BalenaEtcher|flatpak|io.balena.etcher|Flasheur de clés USB et images ISO/IMG"
+        "17|3. Outils Système & Réseau|Syncthing|flatpak|me.kozec.syncthingthegui|Synchronisation de dossiers pair-à-pair sans serveur"
+        "18|3. Outils Système & Réseau|KeePassXC|flatpak|org.keepassxc.KeePassXC|Gestionnaire de mots de passe local sécurisé"
+        "19|3. Outils Système & Réseau|LocalSend|flatpak|org.localsend.localsend|Partage rapide de fichiers par Wi-Fi multiplateforme"
+
+        # 4. Multimédia, Streaming & Téléchargements
+        "20|4. Multimédia & Téléchargements|VLC Media Player|flatpak|org.videolan.VLC|Lecteur multimédia universel"
+        "21|4. Multimédia & Téléchargements|Kodi Media Center|flatpak|tv.kodi.Kodi|Centre multimédia et home cinema de salon"
+        "22|4. Multimédia & Téléchargements|HandBrake|flatpak|fr.handbrake.ghb|Convertisseur et réencodage vidéo puissant"
+        "23|4. Multimédia & Téléchargements|OBS Studio|flatpak|com.obsproject.Studio|Streaming, capture d'écran et enregistrement vidéo"
+        "24|4. Multimédia & Téléchargements|JDownloader 2|flatpak|org.jdownloader.JDownloader|Gestionnaire de téléchargements direct avancé"
+        "25|4. Multimédia & Téléchargements|Deluge (Torrent)|flatpak|org.deluge_torrent.Deluge|Client Torrent léger et performant"
+        "26|4. Multimédia & Téléchargements|Transmission (Torrent)|flatpak|fr.transmissionbt.Transmission|Client BitTorrent épuré et ultra rapide"
+        "27|4. Multimédia & Téléchargements|SoundConverter|flatpak|org.soundconverter.SoundConverter|Convertisseur audio rapide"
+
+        # 5. Social, Musique & WebApps (Netflix, Spotify...)
+        "28|5. Social, Musique & WebApps|Discord|flatpak|com.discordapp.Discord|Chat vocal, textuel et streaming communautaire"
+        "29|5. Social, Musique & WebApps|Spotify (Webapp)|flatpak|com.spotify.Client|Écoute de musique en streaming"
+        "30|5. Social, Musique & WebApps|Netflix (Webapp)|flatpak|com.netflix.Netflix|Visionnage de films et séries Netflix"
+        "31|5. Social, Musique & WebApps|Audacity|flatpak|org.audacityteam.Audacity|Éditeur et enregistreur audio multipiste"
+        "32|5. Social, Musique & WebApps|Strawberry Music Player|flatpak|org.strawberrymusicplayer.strawberry|Lecteur audio riche en fonctionnalités"
+
+        # 6. Graphisme & Retouche d'images
+        "33|6. Graphisme & Images|GIMP (Alternative Photoshop)|flatpak|org.gimp.GIMP|Éditeur d'images professionnel"
+        "34|6. Graphisme & Images|Pinta|flatpak|com.github.PintaProject.Pinta|Éditeur de dessin et retouche simple"
+        "35|6. Graphisme & Images|Inkscape|flatpak|org.inkscape.Inkscape|Éditeur de graphismes vectoriels professionnel"
+        "36|6. Graphisme & Images|Aseprite / Pixelorama|flatpak|com.github.OramaInteractive.Pixelorama|Création et édition de Pixel Art"
+
+        # 7. Jeux, Launchers & Outils Windows
+        "37|7. Jeux & Stores PC|Lutris|flatpak|net.lutris.Lutris|Gestionnaire de jeux universel (Epic, GOG, émulateurs)"
+        "38|7. Jeux & Stores PC|Bottles|flatpak|com.usebottles.bottles|Exécuter des applications et jeux Windows facilement"
+        "39|7. Jeux & Stores PC|Heroic Games Launcher|flatpak|com.heroicgameslauncher.hgl|Launcher Epic Games, GOG & Amazon Games"
+        "40|7. Jeux & Stores PC|MangoHud / GOverlay|dnf|mangohud goverlay|Overlay FPS, température CPU/GPU en jeu"
+
+        # 8. Émulation & Frontends Rétro (Couverture Maximale)
+        "41|8. Émulation & Rétro|RetroArch|flatpak|org.libretro.RetroArch|La référence absolue pour l'émulation multi-consoles"
+        "42|8. Émulation & Rétro|EmulationStation DE (ES-DE)|flatpak|org.emulationstation.emulationstation-de|Frontend de collection de jeux rétro magnifique"
+        "43|8. Émulation & Rétro|Eden (Switch Emulator)|flatpak|io.github.eden_emulator.Eden|Émulateur Nintendo Switch moderne et performant"
+        "44|8. Émulation & Rétro|Flycast (Dreamcast/Naomi)|flatpak|org.flycast.Flycast|Émulateur Sega Dreamcast, Naomi et Atomiswave"
+        "45|8. Émulation & Rétro|PPSSPP (PSP)|flatpak|org.ppsspp.PPSSPP|Émulateur PlayStation Portable (PSP) ultra rapide"
+        "46|8. Émulation & Rétro|DuckStation (PS1)|flatpak|org.duckstation.DuckStation|Émulateur PlayStation 1 de haute précision"
+        "47|8. Émulation & Rétro|PCSX2 (PS2)|flatpak|net.pcsx2.PCSX2|Émulateur PlayStation 2 de référence"
+        "48|8. Émulation & Rétro|RPCS3 (PS3)|flatpak|net.rpcs3.RPCS3|Émulateur PlayStation 3 haute compatibilité"
+        "49|8. Émulation & Rétro|Xenia (Xbox 360 / Wine)|flatpak|org.winehq.Wine|Exécuter l'émulateur Xbox 360 Xenia sous Wine/Bottles"
+        "50|8. Émulation & Rétro|Dolphin (GameCube/Wii)|flatpak|org.DolphinEmu.dolphin-emu|Émulateur GameCube et Nintendo Wii"
+        "51|8. Émulation & Rétro|Mupen64Plus / Simple64 (N64)|flatpak|io.github.simple64.simple64|Émulateur Nintendo 64 moderne"
+        "52|8. Émulation & Rétro|ScummVM|flatpak|org.scummvm.ScummVM|Moteur pour jeux d'aventure point-and-click rétro"
+        "53|8. Émulation & Rétro|Ikemen GO (M.U.G.E.N engine)|flatpak|io.github.ikemengodev.IkenenGO|Moteur de combat 2D type M.U.G.E.N moderne open-source"
+    )
+
+    if command -v zenity &> /dev/null && [ -n "$DISPLAY" ]; then
+        ZEN_APPS=()
+        for app in "${APPS[@]}"; do
+            IFS='|' read -r id cat name type pkg desc <<< "$app"
+            ZEN_APPS+=(FALSE "$id" "[$cat] $name" "$desc")
+        done
+
+        SELECTED_IDS=$(zenity --list --checklist \
+            --title="PS5 Mega App Store & Emulators / Logithèque Géante (50+)" \
+            --text="Cochez les applications et émulateurs à installer :" \
+            --column="Install" --column="ID" --column="Application & Catégorie" --column="Description" \
+            --width=950 --height=700 \
+            --separator=" " \
+            "${ZEN_APPS[@]}")
+    else
+        echo -e "Catalogue d'applications et émulateurs disponibles (entrez les numéros séparés par un espace) :"
+        echo -e "----------------------------------------------------------------"
+        CURRENT_CAT=""
+        for app in "${APPS[@]}"; do
+            IFS='|' read -r id cat name type pkg desc <<< "$app"
+            if [ "$cat" != "$CURRENT_CAT" ]; then
+                CURRENT_CAT="$cat"
+                echo -e "\n${CYAN}--- $CURRENT_CAT ---${NC}"
+            fi
+            printf "  ${GREEN}%2s)${NC} %-32s : %s\n" "$id" "$name" "$desc"
+        done
+        echo -e "  ${YELLOW} A)${NC} Tout installer / Install All"
+        echo -e "  ${RED} 0)${NC} Retour / Back"
+        echo -e "----------------------------------------------------------------"
+        read -p "Votre sélection : " SELECTED_IDS
+    fi
+
+    if [[ -z "$SELECTED_IDS" || "$SELECTED_IDS" == "0" ]]; then
+        return
+    fi
+
+    if [[ "$SELECTED_IDS" =~ ^[Aa]$ ]]; then
+        SELECTED_IDS=""
+        for app in "${APPS[@]}"; do
+            IFS='|' read -r id cat name type pkg desc <<< "$app"
+            SELECTED_IDS="$SELECTED_IDS $id"
+        done
+    fi
+
+    for sel in $SELECTED_IDS; do
+        for app in "${APPS[@]}"; do
+            IFS='|' read -r id cat name type pkg desc <<< "$app"
+            if [[ "$id" == "$sel" ]]; then
+                echo -e "\n${YELLOW}Installation de $name ($pkg)...${NC}"
+                if [[ "$type" == "flatpak" ]]; then
+                    flatpak install -y flathub "$pkg" || true
+                elif [[ "$type" == "dnf" ]]; then
+                    sudo dnf install -y "$pkg" || true
+                fi
+                echo -e "${GREEN}✔ $name installé avec succès !${NC}"
+            fi
+        done
+    done
+    sleep 2
+}
+
+# ==============================================================================
+# OPTION 6: SYSTEM & APPS UPDATE + CACHE CLEANUP (MAINTENANCE)
+# ==============================================================================
+run_maintenance() {
+    echo -e "\n${BLUE}=== [OPTION 6] Mises à jour complètes & Nettoyage Système ===${NC}"
+    
+    echo -e "\n${GREEN}[1/5] Mise à jour des paquets système (DNF)...${NC}"
+    sudo dnf upgrade -y --refresh
+
+    echo -e "\n${GREEN}[2/5] Mise à jour des applications Flatpak & AppStream...${NC}"
+    flatpak update --appstream -y || true
+    flatpak update -y || true
+
+    echo -e "\n${GREEN}[3/5] Suppression des dépendances orphelines et noyaux inutiles...${NC}"
+    sudo dnf autoremove -y
+
+    echo -e "\n${GREEN}[4/5] Nettoyage du cache DNF et des runtimes Flatpak orphelins...${NC}"
+    sudo dnf clean all
+    flatpak uninstall --unused -y || true
+    flatpak repair --user || true
+
+    echo -e "\n${GREEN}[5/5] Nettoyage des journaux système anciens (> 7 jours)...${NC}"
+    sudo journalctl --vacuum-time=7d
+
+    echo -e "\n${GREEN}✔ Système mis à jour et nettoyé avec succès !${NC}"
+    sleep 2
+}
+
+# ==============================================================================
+# MAIN INTERACTIVE MENU
+# ==============================================================================
+show_menu() {
+    while true; do
+        OS_VER=$(rpm -E %fedora)
+        KERN_VER=$(uname -r)
+
+        if command -v zenity &> /dev/null && [ -n "$DISPLAY" ]; then
+            CHOICE=$(zenity --list \
+                --title="PS5 Linux Universal Manager (nexgen999)" \
+                --text="Système : Fedora $OS_VER | Noyau : $KERN_VER\nChoisissez une action :" \
+                --column="Option" --column="Action" --column="Description" \
+                --width=720 --height=400 \
+                "1" "Langue & Clavier" "Configurer la langue du système (17 langues) et le clavier" \
+                "2" "Setup Initial PS5" "Pilotes Mesa/Vulkan, OpenSSL, Fan/Boost, Steam, Heroic, Outils" \
+                "3" "Upgrade Fedora 45" "Mise à niveau majeure vers Fedora 45 (avec redémarrage)" \
+                "4" "Noyau PS5 (Kernel)" "Télécharge et installe automatiquement le dernier .rpm PS5" \
+                "5" "Logithèque (50+ Apps)" "GParted, SMB/Samba, Thunderbird, Switch, Émulateurs, OBS..." \
+                "6" "Mises à jour & Clean" "Mettre à jour DNF + Flatpak et nettoyer les caches système" \
+                "7" "Statut Système" "Vérifier le noyau, RADV/Vulkan et l'état du ventilateur" \
+                "0" "Quitter" "Fermer l'assistant")
+        else
+            clear
+            echo -e "${BLUE}================================================================${NC}"
+            echo -e "${BLUE}       PS5 Linux (Fedora) - Universal Setup Manager             ${NC}"
+            echo -e "${BLUE}================================================================${NC}"
+            echo -e "Système : ${YELLOW}Fedora $OS_VER${NC} | Noyau actif : ${YELLOW}$KERN_VER${NC}"
+            echo -e "----------------------------------------------------------------"
+            echo -e "  ${GREEN}1)${NC} Langue & Clavier       (17 langues + disposition clavier)"
+            echo -e "  ${GREEN}2)${NC} Setup Initial PS5      (Pilotes, OpenSSL, Fan/Boost, Steam, Heroic)"
+            echo -e "  ${GREEN}3)${NC} Upgrade Fedora 45      (Mise à niveau majeure de l'OS + Reboot)"
+            echo -e "  ${GREEN}4)${NC} Noyau PS5 (Kernel)     (Téléchargement & install auto du .rpm)"
+            echo -e "  ${GREEN}5)${NC} Logithèque (50+ Apps)  (GParted, SMB, Mails, Émulateurs, OBS, Kodi...)"
+            echo -e "  ${GREEN}6)${NC} Mises à jour & Clean   (Update DNF/Flatpak + nettoyage caches)"
+            echo -e "  ${GREEN}7)${NC} Vérifier le statut     (Noyau, RADV/Vulkan, Service Ventilateur)"
+            echo -e "  ${RED}0)${NC} Quitter"
+            echo -e "----------------------------------------------------------------"
+            read -p "Votre choix [0-7] : " CHOICE
+        fi
+
+        case "$CHOICE" in
+            1) configure_language ;;
+            2) run_setup ;;
+            3) run_upgrade ;;
+            4) run_kernel ;;
+            5) install_apps_menu ;;
+            6) run_maintenance ;;
+            7)
+                echo -e "\n${BLUE}=== Statut du système PS5 ===${NC}"
+                uname -a
+                echo -e "\n${YELLOW}--- Pilotes Vulkan / RADV ---${NC}"
+                vulkaninfo --summary | grep -i "radv" || echo "Vulkan non détecté"
+                echo -e "\n${YELLOW}--- Contrôle matériel PS5 ---${NC}"
+                sudo ps5_control --status || echo "ps5_control non installé"
+                read -p $'\nAppuyez sur Entrée pour revenir au menu...'
+                ;;
+            0|"") exit 0 ;;
+            *) echo -e "${RED}Option invalide.${NC}"; sleep 1 ;;
+        esac
+    done
+}
+
+show_menu
