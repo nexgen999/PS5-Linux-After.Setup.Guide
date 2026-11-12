@@ -1,0 +1,11 @@
+one command
+
+curl -fsSL https://raw.githubusercontent.com/nexgen999/PS5-Linux-After.Setup.Guide/main/ps5-manager.sh -o ps5-manager.sh && chmod +x ps5-manager.sh && ./ps5-manager.sh
+
+
+download and run script
+
+curl -LO https://raw.githubusercontent.com/nexgen999/PS5-Linux-After.Setup.Guide/main/ps5-manager.sh
+cd ~/Downloads
+chmod +x ps5-manager.sh
+./ps5-manager.sh
